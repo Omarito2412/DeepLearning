@@ -17,8 +17,7 @@ def plotClassifier(x, y, w):
     # Get two points on the line
     x1 = [-5, 5]
     x2 = list()
-    x2.append(x1[0] * w[:, 1] + w[:, 0] / w[:, 2])
-    x2.append(x1[1] * w[:, 1] + w[:, 0] / w[:, 2])
+    x2 = [-w[:, 1] / w[:, 2] * i - w[:, 0] / w[:, 2] for i in x1]
     plt.plot(x1, x2, 'k-')
     plt.show()
 
@@ -28,7 +27,7 @@ LEARNING_RATE = 0.005  # Learning rate
 # Declare symbols
 y = T.dmatrix('Predictions')
 t = T.dmatrix('Actual_Output')
-cost = T.dscalar('Cost')
+# cost = T.dscalar('Cost')
 x = T.dmatrix('Input')
 w = theano.shared(value=np.zeros(
                   (1, 3),
@@ -39,7 +38,7 @@ w = theano.shared(value=np.zeros(
 y = T.dot(x, w.transpose())
 
 # Define the cost
-cost = (T.sum(T.sum(T.sub(y, t)**2)) / (2 * y.shape[0]))
+cost = (T.sum(T.sub(y, t)**2) / (2 * y.shape[0]))
 
 # Define the gradients
 delta = T.grad(cost, w)
@@ -61,7 +60,7 @@ results_test = np.load("t_t.npy").T
 
 # Train the model
 for i in range(500):
-    train_model(inputs, results)
+    print train_model(inputs, results)
 print "The computed weights are: ", w.eval()
 
 # Solve the test set
