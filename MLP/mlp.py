@@ -6,6 +6,7 @@ import numpy as np
 HIDDEN_NEURONS = 100
 NUM_CLASSES = 10
 NUM_FEATURES = 0
+LEARNING_RATE = 0.05
 
 # Load Data
 Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
@@ -26,21 +27,36 @@ t = T.dmatrix('Target Values')
 Netj = T.dmatrix('Net of hidden layer')
 Netk = T.dmatrix('Net of output layer')
 Aj = T.dmatrix('Activation of hidden layer')
-Wj = theano.shared(value=np.random.rand(NUM_FEATURES, HIDDEN_NEURONS),
-                   name="Weights of hidden layer")
-Wk = theano.shared(value=np.random.rand(HIDDEN_NEURONS, NUM_CLASSES),
-                   name="Weights of output layer")
+# Wj = theano.shared(value=np.random.rand(NUM_FEATURES, HIDDEN_NEURONS),
+#                    name="Weights of hidden layer")
+# Wk = theano.shared(value=np.random.rand(HIDDEN_NEURONS, NUM_CLASSES),
+#                    name="Weights of output layer")
+Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS)
+Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES)
+Weights = theano.shared(value=np.concatenate((Wj.ravel(), Wk.ravel()), axis=0),
+                        name="Weights ravelled")
 
-Netj = T.dot(x, Wj)
+# Define equations
+Netj = T.dot(x, Weights[0:NUM_FEATURES * HIDDEN_NEURONS]
+             .reshape((NUM_FEATURES, HIDDEN_NEURONS)))
 Aj = T.nnet.sigmoid(Netj)
 
-Netk = T.dot(Aj, Wk)
+Netk = T.dot(Aj, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
+             .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
 y = T.nnet.softmax(Netk)
 
 cost = T.mean(T.nnet.categorical_crossentropy(y, t))
+
+Grads = T.grad(cost, Weights)
+
+# Define Functions
 
 computeCost = theano.function([y, t], cost)
 
 forwardProp = theano.function([x], y)
 
-print computeCost(forwardProp(X_Train), Y_Train_onehot)
+updates = [(Weights, Weights - LEARNING_RATE * Grads)]
+trainModel = theano.function([x, t], cost, updates=updates)
+
+for i in range(100):
+    print trainModel(X_Train, Y_Train_onehot)
