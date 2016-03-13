@@ -1,22 +1,44 @@
 import theano
 import theano.tensor as T
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 # Declare constants
 HIDDEN_NEURONS = 100
 NUM_CLASSES = 10
 NUM_FEATURES = 0
 LEARNING_RATE = 0.05
+XVAL_SIZE = 0.3
+NUM_EPOCHS = 5
 
 # Load Data
 Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
                           dtype=np.uint8, skiprows=1, delimiter=",")
-X_Train = Training_set[:, 1:]
+
+Test_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/mnist_test.csv",
+                      dtype=np.uint8, skiprows=1, delimiter=",")
+
+# Training Data
+X_Train = Training_set[XVAL_SIZE * Training_set.shape[0]:, 1:]
 X_Train = np.c_[np.ones((X_Train.shape[0], 1)), X_Train]
-Y_Train = Training_set[:, 0]
+Y_Train = Training_set[XVAL_SIZE * Training_set.shape[0]:, 0]
 Y_Train_onehot = np.zeros((Y_Train.shape[0], NUM_CLASSES))
+
+# Cross Validation data
+X_XVal = Training_set[0:XVAL_SIZE * Training_set.shape[0], 1:]
+X_XVal = np.c_[np.ones((X_XVal.shape[0], 1)), X_XVal]
+Y_XVal = Training_set[0:XVAL_SIZE * Training_set.shape[0], 0]
+Y_XVal_onehot = np.zeros((Y_XVal.shape[0], NUM_CLASSES))
+
+# Test Data
+X_Test = Test_set[:, 1:]
+X_Test = np.c_[np.ones((X_Test.shape[0], 1)), X_Test]
+Y_Test = Test_set[:, 0]
+
 # One hot encode Target Y
 Y_Train_onehot[np.arange(X_Train.shape[0]), Y_Train] = 1
+Y_XVal_onehot[np.arange(X_XVal.shape[0]), Y_XVal] = 1
 
 NUM_FEATURES = X_Train.shape[1]
 
@@ -58,5 +80,16 @@ forwardProp = theano.function([x], y)
 updates = [(Weights, Weights - LEARNING_RATE * Grads)]
 trainModel = theano.function([x, t], cost, updates=updates)
 
-for i in range(100):
-    print trainModel(X_Train, Y_Train_onehot)
+costs = {'training': list(), 'xval': list()}
+for i in range(NUM_EPOCHS):
+    costs['training'].append(trainModel(X_Train, Y_Train_onehot))
+    costs['xval'].append(computeCost(forwardProp(X_XVal), Y_XVal_onehot))
+    print "Epoch number: " + str(i + 1)
+plt.plot(range(NUM_EPOCHS), costs['training'], range(
+    NUM_EPOCHS), costs['xval'])
+plt.show()
+
+Test_Result = np.argmax(forwardProp(X_Test), axis=1)
+Score = float(len(np.where(Test_Result != Y_Test)[0])) / float(
+    (Y_Test.shape[0])) * 100
+print "The model performed with an accuracy of: %.2f%" % (str(Score)) + "%"
