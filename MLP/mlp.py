@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 from six.moves import cPickle
 
 # Declare constants
-HIDDEN_NEURONS = 200
+HIDDEN_NEURONS = 800
 NUM_CLASSES = 10
 NUM_FEATURES = 0
-LEARNING_RATE = 0.4
+LEARNING_RATE = 0.3
 XVAL_SIZE = 0.3
-NUM_EPOCHS = 50
+NUM_EPOCHS = 1000
 
 # Load Data
 # Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
@@ -85,19 +85,37 @@ forwardProp = theano.function([x], y)
 updates = [(Weights, Weights - LEARNING_RATE * Grads)]
 trainModel = theano.function([x, t], cost, updates=updates)
 
+minimum = 9999
+minimum_weights = 0
+for i in range(100):
+    tmp = computeCost(forwardProp(X_XVal), Y_XVal_onehot)
+    if (tmp < minimum):
+        minimum = tmp
+        minimum_weights = Weights.eval()
+    Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS) * 0.01
+    Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES) * 0.01
+    Weights = theano.shared(value=np.concatenate((Wj.ravel(), Wk.ravel()), axis=0),
+                            name="Weights ravelled")
+Weights = theano.shared(value=minimum_weights,
+                        name="Weights ravelled")
+
 costs = {'training': list(), 'xval': list()}
 for i in range(NUM_EPOCHS):
+    print "Epoch number: " + str(i + 1)
     costs['training'].append(trainModel(X_Train, Y_Train_onehot))
     costs['xval'].append(computeCost(forwardProp(X_XVal), Y_XVal_onehot))
-    print "Epoch number: " + str(i + 1)
     Test_Result = np.argmax(forwardProp(X_Test), axis=1)
     Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
-    (Y_Test.shape[0])) * 100
+        (Y_Test.shape[0])) * 100
     print "The model performed with an accuracy of: %.2f" % (float(Score)) + "%"
-plt.plot(range(NUM_EPOCHS), costs['training'], range(
-    NUM_EPOCHS), costs['xval'])
-plt.show()
+    if(i % 10 == 0 and i > 0):
+        plt.plot(range(i + 1), costs['training'], range(
+            i + 1), costs['xval'])
+        plt.show()
 
+# plt.plot(range(NUM_EPOCHS), costs['training'], range(
+#             NUM_EPOCHS), costs['xval'])
+#         plt.show()
 Test_Result = np.argmax(forwardProp(X_Test), axis=1)
 Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
     (Y_Test.shape[0])) * 100
