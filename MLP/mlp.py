@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 from six.moves import cPickle
 
 # Declare constants
-HIDDEN_NEURONS = 50
+HIDDEN_NEURONS = 200
 NUM_CLASSES = 10
 NUM_FEATURES = 0
-LEARNING_RATE = 0.04
-XVAL_SIZE = 0.1
-NUM_EPOCHS = 10
+LEARNING_RATE = 0.4
+XVAL_SIZE = 0.3
+NUM_EPOCHS = 50
 
 # Load Data
 # Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
@@ -38,6 +38,7 @@ Y_XVal_onehot = np.zeros((Y_XVal.shape[0], NUM_CLASSES))
 
 # Test Data
 X_Test = Test_set[:, 1:]
+X_Test = (X_Test - X_Test.mean()) / X_Train.std()
 X_Test = np.c_[np.ones((X_Test.shape[0], 1)), X_Test]
 Y_Test = Test_set[:, 0]
 
@@ -54,17 +55,18 @@ t = T.dmatrix('Target Values')
 Netj = T.dmatrix('Net of hidden layer')
 Netk = T.dmatrix('Net of output layer')
 Aj = T.dmatrix('Activation of hidden layer')
-Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS)
-Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES)
+Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS) * 0.01
+Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES) * 0.01
 Weights = theano.shared(value=np.concatenate((Wj.ravel(), Wk.ravel()), axis=0),
                         name="Weights ravelled")
 
 # Define equations
 Netj = T.dot(x, Weights[0:NUM_FEATURES * HIDDEN_NEURONS]
              .reshape((NUM_FEATURES, HIDDEN_NEURONS)))
-# Aj = T.maximum(Netj, 0)
+# Aj = T.maximum(Netj, 10)
 # Aj = T.tanh(Netj)
 Aj = T.nnet.sigmoid(Netj)
+# Aj = Netj
 
 Netk = T.dot(Aj, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
              .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
@@ -88,11 +90,15 @@ for i in range(NUM_EPOCHS):
     costs['training'].append(trainModel(X_Train, Y_Train_onehot))
     costs['xval'].append(computeCost(forwardProp(X_XVal), Y_XVal_onehot))
     print "Epoch number: " + str(i + 1)
+    Test_Result = np.argmax(forwardProp(X_Test), axis=1)
+    Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
+    (Y_Test.shape[0])) * 100
+    print "The model performed with an accuracy of: %.2f" % (float(Score)) + "%"
 plt.plot(range(NUM_EPOCHS), costs['training'], range(
     NUM_EPOCHS), costs['xval'])
 plt.show()
 
 Test_Result = np.argmax(forwardProp(X_Test), axis=1)
-Score = float(len(np.where(Test_Result != Y_Test)[0])) / float(
+Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
     (Y_Test.shape[0])) * 100
 print "The model performed with an accuracy of: %.2f" % (float(Score)) + "%"
