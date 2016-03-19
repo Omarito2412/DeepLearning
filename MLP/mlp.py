@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 from six.moves import cPickle
 
 # Declare constants
-HIDDEN_NEURONS = 800
+HIDDEN_NEURONS = 50
 NUM_CLASSES = 10
 NUM_FEATURES = 0
-LEARNING_RATE = 0.3
+LEARNING_RATE = 0.4
 XVAL_SIZE = 0.3
 NUM_EPOCHS = 1000
+NUM_RAND_INITS = 5
 
 # Load Data
 # Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
@@ -63,9 +64,9 @@ Weights = theano.shared(value=np.concatenate((Wj.ravel(), Wk.ravel()), axis=0),
 # Define equations
 Netj = T.dot(x, Weights[0:NUM_FEATURES * HIDDEN_NEURONS]
              .reshape((NUM_FEATURES, HIDDEN_NEURONS)))
-# Aj = T.maximum(Netj, 10)
+Aj = T.maximum(Netj, 0.01 * Netj)
 # Aj = T.tanh(Netj)
-Aj = T.nnet.sigmoid(Netj)
+# Aj = T.nnet.sigmoid(Netj)
 # Aj = Netj
 
 Netk = T.dot(Aj, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
@@ -85,30 +86,16 @@ forwardProp = theano.function([x], y)
 updates = [(Weights, Weights - LEARNING_RATE * Grads)]
 trainModel = theano.function([x, t], cost, updates=updates)
 
-minimum = 9999
-minimum_weights = 0
-for i in range(100):
-    tmp = computeCost(forwardProp(X_XVal), Y_XVal_onehot)
-    if (tmp < minimum):
-        minimum = tmp
-        minimum_weights = Weights.eval()
-    Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS) * 0.01
-    Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES) * 0.01
-    Weights = theano.shared(value=np.concatenate((Wj.ravel(), Wk.ravel()), axis=0),
-                            name="Weights ravelled")
-Weights = theano.shared(value=minimum_weights,
-                        name="Weights ravelled")
-
 costs = {'training': list(), 'xval': list()}
 for i in range(NUM_EPOCHS):
     print "Epoch number: " + str(i + 1)
     costs['training'].append(trainModel(X_Train, Y_Train_onehot))
     costs['xval'].append(computeCost(forwardProp(X_XVal), Y_XVal_onehot))
-    Test_Result = np.argmax(forwardProp(X_Test), axis=1)
-    Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
-        (Y_Test.shape[0])) * 100
-    print "The model performed with an accuracy of: %.2f" % (float(Score)) + "%"
-    if(i % 10 == 0 and i > 0):
+    if(i % 25 == 0 and i > 0):
+        Test_Result = np.argmax(forwardProp(X_Test), axis=1)
+        Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
+            (Y_Test.shape[0])) * 100
+        print "The model performed with an accuracy of: %.2f" % (float(Score)) + "%"
         plt.plot(range(i + 1), costs['training'], range(
             i + 1), costs['xval'])
         plt.show()
