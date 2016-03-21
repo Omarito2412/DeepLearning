@@ -16,7 +16,7 @@ L1_reg = 2.5 * 10 ** -4
 L2_reg = 2.5 * 10 ** -4
 DROPOUT_PROBABILITY = 0.5
 REGULZN = "Dropout"
-ACTIVATION = "ReLU"
+ACTIVATION = "tanh"
 
 # Initialize random stream
 rng = np.random.RandomState(1234)
@@ -85,16 +85,21 @@ srng = theano.tensor.shared_randomstreams.RandomStreams(
 mask = srng.binomial(n=1, p=1 - DROPOUT_PROBABILITY, size=Netj.shape)
 
 # Dropout
-Aj = Aj * T.cast(mask, theano.config.floatX)
+if(REGULZN is "Dropout"):
+    Aj = Aj * T.cast(mask, theano.config.floatX)
+
 Netk = T.dot(Aj, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
              .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
 y = T.nnet.softmax(Netk)
 
 # Test variables for dropout
-Netk_test = T.dot(Aj_test, (1 - DROPOUT_PROBABILITY) *
-                  Weights[NUM_FEATURES * HIDDEN_NEURONS:]
-                  .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
-
+if(REGULZN is "Dropout"):
+    Netk_test = T.dot(Aj_test, (1 - DROPOUT_PROBABILITY) *
+                      Weights[NUM_FEATURES * HIDDEN_NEURONS:]
+                      .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
+else:
+    Netk_test = T.dot(Aj_test, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
+                      .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
 y_test = T.nnet.softmax(Netk_test)
 
 cost = T.mean(T.nnet.categorical_crossentropy(y, t))
@@ -119,12 +124,11 @@ forwardProp_test = theano.function([x], y_test)
 updates = [(Weights, Weights - LEARNING_RATE * (Grads))]
 trainModel = theano.function([x, t], reg_cost, updates=updates)
 
+# Best of N random initializations
 minimum = 9999
 minimum_weights = 0
 for i in range(NUM_RAND_INITS):
     tmp = computeCost(forwardProp(X_Train), Y_Train_onehot)
-    print tmp
-    print minimum
     if (tmp < minimum):
         minimum = tmp
         minimum_weights = Weights.get_value()
