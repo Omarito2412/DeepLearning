@@ -5,19 +5,17 @@ import matplotlib.pyplot as plt
 from six.moves import cPickle
 
 # Declare constants
-HIDDEN_NEURONS = 50
+HIDDEN_NEURONS = 30
+HIDDEN_NEURONS_2 = 20
 NUM_CLASSES = 10
 NUM_FEATURES = 0
 LEARNING_RATE = 0.5
 XVAL_SIZE = 0.3
 NUM_EPOCHS = 1000
 NUM_RAND_INITS = 5
-L1_reg = 2.5 * 10 ** -4
-L2_reg = 2.5 * 10 ** -4
-DROPOUT_PROBABILITY = 0.5
-REGULZN = "Dropout"
-ACTIVATION = "tanh"
+ACTIVATION = "ReLU"
 
+theano.config.exception_verbosity = "high"
 # Initialize random stream
 rng = np.random.RandomState(1234)
 
@@ -56,12 +54,16 @@ x = T.dmatrix('Inputs')
 y = T.dmatrix('Outputs')
 t = T.dmatrix('Target Values')
 Netj = T.dmatrix('Net of hidden layer')
-Netk = T.dmatrix('Net of output layer')
+Netk = T.dmatrix('Net of second hidden layer')
+Netl = T.dmatrix('Net of output hidden')
 Aj = T.dmatrix('Activation of hidden layer')
+Ak = T.dmatrix('Activation of hidden layer 2')
 Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS) * 0.01
-Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES) * 0.01
-Weights = theano.shared(value=np.concatenate((Wj.ravel(), Wk.ravel()), axis=0),
-                        name="Weights ravelled")
+Wk = np.random.rand(HIDDEN_NEURONS, HIDDEN_NEURONS_2) * 0.01
+Wl = np.random.rand(HIDDEN_NEURONS_2, NUM_CLASSES) * 0.01
+Weights = theano.shared(
+    value=np.concatenate((Wj.ravel(), Wk.ravel(), Wl.ravel()), axis=0),
+    name="Weights ravelled")
 
 # Define equations
 Netj = T.dot(x, Weights[0:NUM_FEATURES * HIDDEN_NEURONS]
@@ -75,54 +77,34 @@ elif(ACTIVATION is "tanh"):
 else:
     Aj = T.nnet.sigmoid(Netj)
 
-Aj_test = Aj
+Netk = T.dot(Aj,
+             Weights[NUM_FEATURES * HIDDEN_NEURONS:(NUM_FEATURES *
+                     HIDDEN_NEURONS + HIDDEN_NEURONS * HIDDEN_NEURONS_2)]
+             .reshape((HIDDEN_NEURONS, HIDDEN_NEURONS_2)))
 
-# Theano random stream for dropout
-srng = theano.tensor.shared_randomstreams.RandomStreams(
-    rng.randint(999999))
-
-# Dropout mask
-mask = srng.binomial(n=1, p=1 - DROPOUT_PROBABILITY, size=Netj.shape)
-
-# Dropout
-if(REGULZN is "Dropout"):
-    Aj = Aj * T.cast(mask, theano.config.floatX)
-
-Netk = T.dot(Aj, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
-             .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
-y = T.nnet.softmax(Netk)
-
-# Test variables for dropout
-if(REGULZN is "Dropout"):
-    Netk_test = T.dot(Aj_test, (1 - DROPOUT_PROBABILITY) *
-                      Weights[NUM_FEATURES * HIDDEN_NEURONS:]
-                      .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
+# Activation 2
+if(ACTIVATION is "ReLU"):
+    Ak = T.maximum(Netk, 0.01 * Netk)
+elif(ACTIVATION is "tanh"):
+    Ak = T.tanh(Netk)
 else:
-    Netk_test = T.dot(Aj_test, Weights[NUM_FEATURES * HIDDEN_NEURONS:]
-                      .reshape((HIDDEN_NEURONS, NUM_CLASSES)))
-y_test = T.nnet.softmax(Netk_test)
+    Ak = T.nnet.sigmoid(Netk)
 
+Netl = T.dot(Ak, Weights[
+    (NUM_FEATURES * HIDDEN_NEURONS + HIDDEN_NEURONS * HIDDEN_NEURONS_2):]
+    .reshape((HIDDEN_NEURONS_2, NUM_CLASSES)))
+y = T.nnet.softmax(Netl)
 cost = T.mean(T.nnet.categorical_crossentropy(y, t))
-L1_cost = T.mean(((L1_reg) * T.sum(abs(Weights))))
-L2_cost = T.mean((L2_reg * T.sum(Weights ** 2)))
-
-reg_cost = cost + L1_cost + L2_cost
-
-if(REGULZN is "Dropout"):
-    reg_cost = cost
-
-Grads = T.grad(reg_cost, Weights)
+Grads = T.grad(cost, Weights)
 
 # Define Functions
 
-computeCost = theano.function([y, t], reg_cost)
+computeCost = theano.function([y, t], cost)
 
 forwardProp = theano.function([x], y)
-forwardProp_test = theano.function([x], y_test)
-
 
 updates = [(Weights, Weights - LEARNING_RATE * (Grads))]
-trainModel = theano.function([x, t], reg_cost, updates=updates)
+trainModel = theano.function([x, t], cost, updates=updates)
 
 # Best of N random initializations
 minimum = 9999
@@ -133,18 +115,19 @@ for i in range(NUM_RAND_INITS):
         minimum = tmp
         minimum_weights = Weights.get_value()
     Wj = np.random.rand(NUM_FEATURES, HIDDEN_NEURONS) * 0.01
-    Wk = np.random.rand(HIDDEN_NEURONS, NUM_CLASSES) * 0.01
-    Weights.set_value(np.concatenate((Wj.ravel(), Wk.ravel()), axis=0))
+    Wk = np.random.rand(HIDDEN_NEURONS, HIDDEN_NEURONS_2) * 0.01
+    Wl = np.random.rand(HIDDEN_NEURONS_2, NUM_CLASSES) * 0.01
+    Weights.set_value(
+        np.concatenate((Wj.ravel(), Wk.ravel(), Wl.ravel()), axis=0))
 
 Weights.set_value(minimum_weights)
-
 costs = {'training': list(), 'xval': list()}
 for i in range(NUM_EPOCHS):
     print "Epoch number: " + str(i + 1)
     costs['training'].append(trainModel(X_Train, Y_Train_onehot))
     costs['xval'].append(computeCost(forwardProp(X_XVal), Y_XVal_onehot))
     if(i % 10 == 0 and i > 0):
-        Test_Result = np.argmax(forwardProp_test(X_Test), axis=1)
+        Test_Result = np.argmax(forwardProp(X_Test), axis=1)
         Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
             (Y_Test.shape[0])) * 100
         print "The model classified with an accuracy of: %.2f" % (
