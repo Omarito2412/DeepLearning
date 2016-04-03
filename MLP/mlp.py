@@ -10,13 +10,13 @@ NUM_CLASSES = 10
 NUM_FEATURES = 0
 LEARNING_RATE = 0.5
 XVAL_SIZE = 0.3
-NUM_EPOCHS = 1000
+NUM_EPOCHS = 200
 NUM_RAND_INITS = 5
 L1_reg = 2.5 * 10 ** -4
 L2_reg = 2.5 * 10 ** -4
 DROPOUT_PROBABILITY = 0.5
 REGULZN = "Dropout"
-ACTIVATION = "tanh"
+ACTIVATION = "ReLU"
 
 # Initialize random stream
 rng = np.random.RandomState(1234)
@@ -153,9 +153,9 @@ for i in range(NUM_EPOCHS):
         #     i + 1), costs['xval'])
         # plt.show()
 
-# plt.plot(range(NUM_EPOCHS), costs['training'], range(
-#             NUM_EPOCHS), costs['xval'])
-#         plt.show()
+plt.plot(range(NUM_EPOCHS), costs['training'], range(
+            NUM_EPOCHS), costs['xval'])
+plt.show()
 Test_Result = np.argmax(forwardProp(X_Test), axis=1)
 Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
     (Y_Test.shape[0])) * 100
