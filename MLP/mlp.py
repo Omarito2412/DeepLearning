@@ -2,25 +2,30 @@ import theano
 import theano.tensor as T
 import numpy as np
 import matplotlib.pyplot as plt
-
+from six.moves import cPickle
 
 # Declare constants
-HIDDEN_NEURONS = 100
+HIDDEN_NEURONS = 50
 NUM_CLASSES = 10
 NUM_FEATURES = 0
-LEARNING_RATE = 0.05
-XVAL_SIZE = 0.3
-NUM_EPOCHS = 5
+LEARNING_RATE = 0.01
+XVAL_SIZE = 0.1
+NUM_EPOCHS = 10
 
 # Load Data
-Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
-                          dtype=np.uint8, skiprows=1, delimiter=",")
+# Training_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/train.csv",
+#                           dtype=np.uint8, skiprows=1, delimiter=",")
 
-Test_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/mnist_test.csv",
-                      dtype=np.uint8, skiprows=1, delimiter=",")
+# Test_set = np.loadtxt("/media/omarito/DATA/Data Sets/MNIST/mnist_test.csv",
+#                       dtype=np.uint8, skiprows=1, delimiter=",")
+
+Training_set = cPickle.load(open("train.pickle", "rb"))
+
+Test_set = cPickle.load(open("test.pickle", "rb"))
 
 # Training Data
 X_Train = Training_set[XVAL_SIZE * Training_set.shape[0]:, 1:]
+X_Train = (X_Train - X_Train.mean()) / X_Train.std()
 X_Train = np.c_[np.ones((X_Train.shape[0], 1)), X_Train]
 Y_Train = Training_set[XVAL_SIZE * Training_set.shape[0]:, 0]
 Y_Train_onehot = np.zeros((Y_Train.shape[0], NUM_CLASSES))
@@ -92,4 +97,4 @@ plt.show()
 Test_Result = np.argmax(forwardProp(X_Test), axis=1)
 Score = float(len(np.where(Test_Result != Y_Test)[0])) / float(
     (Y_Test.shape[0])) * 100
-print "The model performed with an accuracy of: %.2f%" % (str(Score)) + "%"
+print "The model performed with an accuracy of: %.2f" % (float(Score)) + "%"
