@@ -1,3 +1,4 @@
+"""A Two layer Neural Network tested on MNIST."""
 import theano
 import theano.tensor as T
 import numpy as np

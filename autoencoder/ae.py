@@ -1,3 +1,4 @@
+"""A single layer AutoEncoder."""
 import theano
 import theano.tensor as T
 import numpy as np
@@ -10,7 +11,8 @@ parser = argparse.ArgumentParser(
     description='Encode the given input')
 
 parser.add_argument('sets',
-                    help='The Training set and the Test set to encode', nargs='+')
+                    help='The Training set and the Test set to encode',
+                    nargs='+')
 sets = parser.parse_args().sets
 
 # Declare constants

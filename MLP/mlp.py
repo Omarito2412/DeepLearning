@@ -1,3 +1,4 @@
+"""A Single hidden layer Neural Network tested on MNIST."""
 import theano
 import theano.tensor as T
 import numpy as np
@@ -164,8 +165,8 @@ for i in range(NUM_EPOCHS):
         #     i + 1), costs['xval'])
         # plt.show()
 
-plt.plot(range(NUM_EPOCHS), costs['training'], range(
-            NUM_EPOCHS), costs['xval'])
+plt.plot(range(NUM_EPOCHS), costs['training'],
+         range(NUM_EPOCHS), costs['xval'])
 plt.show()
 Test_Result = np.argmax(forwardProp(X_Test), axis=1)
 Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
