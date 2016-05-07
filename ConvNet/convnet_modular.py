@@ -2,6 +2,7 @@
 
 this allows us to easily attach and detach layers
 and see how it behaves.
+PS: So far the momentum method is failing.
 """
 import numpy as np
 
@@ -22,11 +23,11 @@ LEARNING_RATE = 0.1
 EPOCHS = 30000
 BATCH_SIZE = 100
 NUM_CLASSES = 10
-MOMENTUM = 0.9
+MOMENTUM = 0
 
 # Read CIFAR-10
-cifar = cPickle.load(open("../../../cifar.pickle", "rb"))
-test = cPickle.load(open("../../../cifar_test.pickle", "rb"))
+cifar = cPickle.load(open("cifar.pickle", "rb"))
+test = cPickle.load(open("cifar_test.pickle", "rb"))
 
 X_Train = cifar["data"].reshape(
     (-1, IMAGE_DIMS[2], IMAGE_DIMS[0], IMAGE_DIMS[1]))
@@ -35,10 +36,10 @@ Y_Train = cifar["labels"]
 Y_Train_onehot = np.zeros((Y_Train.shape[0], 10))
 Y_Train_onehot[np.arange(Y_Train.shape[0]), Y_Train.astype(int)] = 1
 
-X_Test = test["data"][0:4000].reshape(
+X_Test = test["data"].reshape(
     (-1, IMAGE_DIMS[2], IMAGE_DIMS[0], IMAGE_DIMS[1]))
 X_Test = (X_Test - X_Test.mean()) / X_Test.std()
-Y_Test = np.array(test["labels"])[0:4000]
+Y_Test = np.array(test["labels"])
 
 # Read the MNIST data
 # batch = cPickle.load(open("../MLP/train.pickle", "rb")).astype("float32")
@@ -113,7 +114,7 @@ class ReLULayer:
                     filters_count,
                 )
             ).astype(images.dtype))
-        self.output = T.nnet.relu(images + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.output = T.tanh(images + self.b.dimshuffle('x', 0, 'x', 'x'))
         self.params = [self.b]
         self.velocity = [self.Vb]
 
@@ -170,7 +171,7 @@ class FullyConnectedNetwork:
             ).astype(images.dtype)
         )
         neti = T.dot(images, self.Wi)
-        ai = T.nnet.relu(neti + self.bi)
+        ai = T.tanh(neti + self.bi)
 
         netj = T.dot(ai, self.Wj)
         self.output = T.nnet.softmax(netj + self.bj)
@@ -218,6 +219,13 @@ def count_pools(network):
             counter += 1
     return counter
 
+
+def calculate_hits(x, y):
+    """Calculate accuracy on this minibatch."""
+    test_result = np.argmax(Test(x.astype("float32")), axis=1)
+    score = float(len(np.where(test_result == y)[0]))
+    return score
+
 # Our symbols
 imgs = T.ftensor4('Input batch')
 target = T.fmatrix('Target values')
@@ -253,8 +261,8 @@ network_layers.append(ReLULayer(network_layers[-1].output, NUM_CONV_FILTERS))
 network_layers.append(PoolLayer(network_layers[-1].output, POOL_SHAPE))
 
 # Updating parameters for the next layers
-NUM_CONV_FILTERS = 50
 FILTER2_DIMS = (NUM_CONV_FILTERS, FILTER_DIMS[1], FILTER_DIMS[2])
+NUM_CONV_FILTERS = 150
 
 # Another conv-relu-pool
 network_layers.append(ConvLayer(
@@ -300,9 +308,8 @@ for layer in network_layers:
         V_t = layer.velocity[i]
         V_tp1 = update_velocity(V_t, T.grad(cost, layer.params[i]), LR)
         updates.append((layer.params[i],
-                        layer.params[i] + (
-                            MOMENTUM * V_tp1 - LR * T.grad(
-                                cost, layer.params[i]))))
+                        layer.params[i] + update_velocity(V_tp1, T.grad(
+                            cost, layer.params[i]), LR)))
         updates.append((layer.velocity[i], V_tp1))
 
 # Define functions to run our model
@@ -335,10 +342,12 @@ for i in range(EPOCHS):
         print "An epoch is complete."
 
     # Every 50 iteration calculate accuracy
-    if(i % 200 == 0 and i > 0):
-        Test_Result = np.argmax(Test(X_Test.astype("float32")), axis=1)
-        Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
-            (Y_Test.shape[0])) * 100
+    if(i % 500 == 0 and i > 0):
+        hits = 0
+        for j in range(5):
+            hits += calculate_hits(X_Test[j * 2000:(j + 1) * 2000, :, :, :],
+                                   Y_Test[j * 2000:(j + 1) * 2000])
+        Score = (float(hits) / float(Y_Test.shape[0])) * 100
         print "The model performed with an accuracy of: %.2f" % (
             float(Score)) + "%"
         print "Be advised the Learning rate is: %.4f" % (LEARNING_RATE)
@@ -348,8 +357,10 @@ for i in range(EPOCHS):
 
 
 # Calculate accuracy one last time
-Test_Result = np.argmax(Test(X_Test), axis=1)
-Score = float(len(np.where(Test_Result == Y_Test)[0])) / float(
-    (Y_Test.shape[0])) * 100
+hits = 0
+for j in range(10):
+    hits += calculate_hits(X_Test[j * 1000:(j + 1) * 1000, :, :, :],
+                           Y_Test[j * 1000:(j + 1) * 1000])
+Score = (float(hits) / float(Y_Test.shape[0])) * 100
 print "The model performed with an accuracy of: %.2f" % (
     float(Score)) + "%"

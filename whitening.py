@@ -11,7 +11,7 @@ import argparse
 
 # Regularization param
 epsilon = 10**-5
-ZCA_WHITENING = True
+ZCA_WHITENING = False
 
 # Initialize Argument Parser
 parser = argparse.ArgumentParser(
@@ -41,7 +41,7 @@ data_rot = np.divide(data_rot, np.sqrt(U[0] + epsilon))
 # Perform PCA or ZCA whitening
 if(ZCA_WHITENING):
     print "Performing ZCA whitening"
-    data_rot = np.dot(U, data_rot)
+    data_rot = np.dot(data_rot, U[1])
 
 print "Saving file..."
 with open("output.pickle", "wb") as output:
