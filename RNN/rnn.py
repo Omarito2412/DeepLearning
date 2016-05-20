@@ -24,7 +24,7 @@ t = np.array(
         [[0, 1, 2, 6, -4, 3, 7, 1, 2, 9, 1, 4, 5, 5, 1, 1, 0, 1, 0]]
     ])
 
-LR = 0.08
+LR = 0.1
 X = T.dmatrix('sequences')
 Target = T.dmatrix('target')
 h0 = T.dvector('Initial state')
@@ -58,7 +58,8 @@ updates = [(wi, wi - LR * grad_i), (wj, wj - LR * grad_j),
 run = theano.function([X, Target, h0], cost, updates=updates)
 generate = theano.function([X, h0], y)
 
-for i in range(50):
+for i in range(5000):
     for row_idx in range(0, x.shape[0]):
-        print run(x[0].T, t[0].T, np.ones((1)))
+        run(x[0].T, t[0].T, np.ones((1)))
+print run(x[0].T, t[0].T, np.ones((1)))
 print generate(x[0].T, np.ones((1)))
